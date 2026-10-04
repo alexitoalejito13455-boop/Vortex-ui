@@ -1,0 +1,1564 @@
+--//======================================================
+--// VORTEX UI REMAKE 3.0
+--// MOBILE FIRST • VORTEX FLY TOOL • R6/R15 HOVERBOARD • ESP FIX
+--// SPECTATOR CONTROLLER • THEMES • RGB • SUBCATEGORIES
+--//======================================================
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
+
+local State = {
+	Version = "3.0",
+	Device = "MOBILE",
+	Fly = false, Noclip = false, Sprint = false,
+	InfiniteJump = false, ESP = false,
+	FlyUp = false, FlyDown = false,
+	FlyForward = false, FlyBackward = false,
+	FlyLeft = false, FlyRight = false,
+	Speed = 16, JumpPower = 50, FlySpeed = 70, BodySize = "NORMAL", BodyShape = "NORMAL", HoverSpeed = 58, UIScalePercent = 100, ControlsMode = "BUTTONS",
+	Theme = "Vortex Blue", RGB = false, Scale = 1,
+	CustomColors = {Enabled=false, Button=nil, ButtonText=nil, ButtonOn=nil, ButtonOff=nil, CategoryActive=nil, CategoryInactive=nil, Icon=nil, Border=nil, Glow=nil, Panel=nil, Text=nil},
+	Transparency = .06, Performance = false, Debug = false,
+	Minimized = false, CurrentPage = "HOME",
+	CurrentToolCategory = "PHYSICAL",
+	Waypoints = {}, Session = os.clock(),
+	Spectator = false, SpectatorIndex = 0, SpectatorTarget = nil
+}
+
+local Themes = {
+	-- BG = fondo general | PANEL = paneles | BUTTON = tarjetas/botones
+	-- ACCENT = color principal | TEXT = texto | MUTED = texto secundario
+	-- ICONBG = fondo de iconos | STROKE = bordes suaves
+	["Vortex Blue"]={BG=Color3.fromRGB(7,12,23),PANEL=Color3.fromRGB(13,24,43),BUTTON=Color3.fromRGB(18,38,67),ACCENT=Color3.fromRGB(0,170,255),TEXT=Color3.fromRGB(235,245,255),MUTED=Color3.fromRGB(125,180,235),ICONBG=Color3.fromRGB(0,115,210),STROKE=Color3.fromRGB(0,110,210)},
+	["Cyan"]={BG=Color3.fromRGB(5,19,24),PANEL=Color3.fromRGB(9,36,44),BUTTON=Color3.fromRGB(13,57,67),ACCENT=Color3.fromRGB(0,220,220),TEXT=Color3.fromRGB(235,255,255),MUTED=Color3.fromRGB(115,220,225),ICONBG=Color3.fromRGB(0,155,165),STROKE=Color3.fromRGB(0,175,185)},
+	["Purple"]={BG=Color3.fromRGB(15,8,25),PANEL=Color3.fromRGB(31,16,48),BUTTON=Color3.fromRGB(48,25,70),ACCENT=Color3.fromRGB(174,91,255),TEXT=Color3.fromRGB(248,239,255),MUTED=Color3.fromRGB(190,145,245),ICONBG=Color3.fromRGB(112,45,190),STROKE=Color3.fromRGB(125,55,210)},
+	["Emerald"]={BG=Color3.fromRGB(5,20,15),PANEL=Color3.fromRGB(10,38,27),BUTTON=Color3.fromRGB(16,59,41),ACCENT=Color3.fromRGB(40,220,140),TEXT=Color3.fromRGB(235,255,246),MUTED=Color3.fromRGB(105,215,165),ICONBG=Color3.fromRGB(20,155,95),STROKE=Color3.fromRGB(25,170,110)},
+	["Crimson"]={BG=Color3.fromRGB(24,6,10),PANEL=Color3.fromRGB(43,12,20),BUTTON=Color3.fromRGB(67,18,29),ACCENT=Color3.fromRGB(255,70,90),TEXT=Color3.fromRGB(255,239,242),MUTED=Color3.fromRGB(245,135,145),ICONBG=Color3.fromRGB(180,35,55),STROKE=Color3.fromRGB(200,40,60)},
+	["Dark"]={BG=Color3.fromRGB(10,10,12),PANEL=Color3.fromRGB(21,21,25),BUTTON=Color3.fromRGB(34,34,39),ACCENT=Color3.fromRGB(180,185,195),TEXT=Color3.fromRGB(240,240,245),MUTED=Color3.fromRGB(155,158,168),ICONBG=Color3.fromRGB(85,88,98),STROKE=Color3.fromRGB(100,104,115)},
+	["White"]={BG=Color3.fromRGB(228,232,238),PANEL=Color3.fromRGB(250,251,253),BUTTON=Color3.fromRGB(222,227,235),ACCENT=Color3.fromRGB(30,110,210),TEXT=Color3.fromRGB(25,30,38),MUTED=Color3.fromRGB(75,105,145),ICONBG=Color3.fromRGB(30,110,210),STROKE=Color3.fromRGB(65,125,205)},
+	["Legacy"]={BG=Color3.fromRGB(10,10,10),PANEL=Color3.fromRGB(18,18,18),BUTTON=Color3.fromRGB(27,27,27),ACCENT=Color3.fromRGB(210,45,45),TEXT=Color3.fromRGB(235,235,235),MUTED=Color3.fromRGB(175,105,105),ICONBG=Color3.fromRGB(125,30,30),STROKE=Color3.fromRGB(155,35,35)}
+}
+
+local function Character() return LP.Character end
+local function Humanoid()
+	local c=Character(); return c and c:FindFirstChildOfClass("Humanoid")
+end
+local function Root()
+	local c=Character(); return c and c:FindFirstChild("HumanoidRootPart")
+end
+local function Notify(t,x,d)
+	pcall(function() StarterGui:SetCore("SendNotification",{Title=t,Text=x,Duration=d or 3}) end)
+end
+local function Corner(o,r)
+	local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,r or 8); c.Parent=o; return c
+end
+local function Accent()
+	if State.RGB then return Color3.fromHSV((os.clock()%5)/5,1,1) end
+	return Themes[State.Theme].ACCENT
+end
+local function Custom(name, fallback)
+    local c=State.CustomColors and State.CustomColors[name]
+    return (State.CustomColors and State.CustomColors.Enabled and c) or fallback
+end
+local function ButtonBaseColor() return Custom("Button", Themes[State.Theme].BUTTON) end
+local function ButtonTextColor() return Custom("ButtonText", Themes[State.Theme].TEXT) end
+local function CategoryInactiveColor() return Custom("CategoryInactive", Themes[State.Theme].BUTTON) end
+local function CategoryActiveColor() return Custom("CategoryActive", Accent()) end
+local function BorderColor() return Custom("Border", State.RGB and Accent() or Themes[State.Theme].STROKE) end
+local function ButtonOnColor()
+	local th=Themes[State.Theme] or Themes["Vortex Blue"]
+	if State.CustomColors and State.CustomColors.Enabled and State.CustomColors.ButtonOn then return State.CustomColors.ButtonOn end
+	-- ON sigue el tema: mezcla el color base con el acento, sin verde fijo.
+	return State.RGB and Accent() or th.BUTTON:Lerp(th.ACCENT,0.55)
+end
+local function ButtonOffColor()
+	local th=Themes[State.Theme] or Themes["Vortex Blue"]
+	if State.CustomColors and State.CustomColors.Enabled and State.CustomColors.ButtonOff then return State.CustomColors.ButtonOff end
+	-- OFF sigue el tema y conserva contraste, sin rojo/gris fijo.
+	return th.BUTTON:Lerp(th.BG,0.45)
+end
+
+for _,n in ipairs({"VORTEX_CONTROL_254","VORTEX_UI_REMAKE_258"}) do
+	local g=PG:FindFirstChild(n); if g then g:Destroy() end
+end
+
+local GUI=Instance.new("ScreenGui")
+GUI.Name="VORTEX_UI_REMAKE_258"; GUI.ResetOnSpawn=false; GUI.IgnoreGuiInset=true
+GUI.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; GUI.Parent=PG
+
+local Main=Instance.new("Frame")
+Main.AnchorPoint=Vector2.new(.5,.5); Main.Position=UDim2.fromScale(.5,.5)
+Main.Size=UDim2.fromOffset(760,500); Main.BorderSizePixel=0; Main.Parent=GUI
+Corner(Main,15)
+local UIScale=Instance.new("UIScale",Main)
+
+local Registry={Buttons={},Labels={},TextBoxes={},Strokes={},Panels={},AccentLabels={},Icons={},AccentFrames={}}
+local function Reg(k,o) table.insert(Registry[k],o); return o end
+
+-- Card-style button helpers: visual, compact and mobile-friendly.
+local function ButtonIcon(text)
+	local first=text:match("^(%S+)") or "◆"
+	if first:find("^[%w%p]+$") then
+		local map={
+			["SPEED"]="⚡",["JUMP"]="🦘",["FLY"]="✈",["FPS:"]="◈",["PLAYERS:"]="♟",
+			["SESSION:"]="◷",["INPUT:"]="⌨",["SIZE"]="↔",["THEME:"]="🎨",["DEBUG"]="🐞",
+			["CLEAR"]="🧹",["MOBILE"]="📱",["PC"]="🖥",["VORTEX"]="V",["RGB:"]="🌈"
+		}
+		return map[first] or "◆"
+	end
+	return first
+end
+
+local function SetButtonText(button,text)
+	if not button then return end
+	button.Text=text -- kept for search/accessibility
+	local title=button:FindFirstChild("ButtonTitle")
+	if title then
+		local icon=text:match("^(%S+)") or "◆"
+		local rest=text:gsub("^%S+%s*","")
+		if rest=="" then rest=text end
+		title.Text=rest
+		local iconLabel=button:FindFirstChild("ButtonIcon")
+		if iconLabel then iconLabel.Text=ButtonIcon(text) end
+	end
+end
+
+local Header=Instance.new("Frame"); Header.Size=UDim2.new(1,0,0,64); Header.BorderSizePixel=0; Header.Parent=Main; Corner(Header,15); Reg("Panels",Header)
+local Avatar=Instance.new("ImageLabel"); Avatar.Size=UDim2.fromOffset(44,44); Avatar.Position=UDim2.fromOffset(12,10); Avatar.BackgroundTransparency=1
+Avatar.Image="rbxthumb://type=AvatarHeadShot&id="..LP.UserId.."&w=150&h=150"; Avatar.Parent=Header; Corner(Avatar,22)
+local Logo=Instance.new("TextLabel"); Logo.BackgroundTransparency=1; Logo.Position=UDim2.fromOffset(66,8); Logo.Size=UDim2.fromOffset(180,25); Logo.Text="VORTEX CONTROL"; Logo.Font=Enum.Font.GothamBlack; Logo.TextSize=17; Logo.TextXAlignment=Enum.TextXAlignment.Left; Logo.Parent=Header; Reg("Labels",Logo)
+local UserLabel=Instance.new("TextLabel"); UserLabel.BackgroundTransparency=1; UserLabel.Position=UDim2.fromOffset(66,34); UserLabel.Size=UDim2.fromOffset(220,18); UserLabel.Text="@"..LP.Name.."  •  3.0"; UserLabel.Font=Enum.Font.Gotham; UserLabel.TextSize=10; UserLabel.TextXAlignment=Enum.TextXAlignment.Left; UserLabel.Parent=Header; Reg("Labels",UserLabel)
+local ThemeLabel=Instance.new("TextLabel"); ThemeLabel.BackgroundTransparency=1; ThemeLabel.Position=UDim2.new(1,-260,0,38); ThemeLabel.Size=UDim2.fromOffset(115,16); ThemeLabel.Font=Enum.Font.Gotham; ThemeLabel.TextSize=9; ThemeLabel.TextXAlignment=Enum.TextXAlignment.Right; ThemeLabel.Parent=Header; Reg("AccentLabels",ThemeLabel)
+local Minimize=Instance.new("TextButton"); Minimize.Size=UDim2.fromOffset(34,34); Minimize.Position=UDim2.new(1,-82,0,14); Minimize.Text="—"; Minimize.Font=Enum.Font.GothamBold; Minimize.TextSize=19; Minimize.AutoButtonColor=false; Minimize.Parent=Header; Corner(Minimize,8); Reg("Buttons",Minimize)
+local Close=Instance.new("TextButton"); Close.Size=UDim2.fromOffset(34,34); Close.Position=UDim2.new(1,-42,0,14); Close.Text="×"; Close.Font=Enum.Font.GothamBold; Close.TextSize=21; Close.AutoButtonColor=false; Close.Parent=Header; Corner(Close,8); Reg("Buttons",Close)
+
+local Search=Instance.new("TextBox"); Search.Size=UDim2.fromOffset(145,30); Search.Position=UDim2.new(1,-240,0,17); Search.Font=Enum.Font.Gotham; Search.TextSize=11; Search.ClearTextOnFocus=false; Search.PlaceholderText="Buscar..."; Search.Parent=Header; Corner(Search,8); Reg("TextBoxes",Search)
+
+local dragging=false; local ds; local sp
+Header.InputBegan:Connect(function(i)
+	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		dragging=true; ds=i.Position; sp=Main.Position
+		i.Changed:Connect(function() if i.UserInputState==Enum.UserInputState.End then dragging=false end end)
+	end
+end)
+UIS.InputChanged:Connect(function(i)
+	if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+		local d=i.Position-ds
+		Main.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)
+	end
+end)
+
+local Sidebar=Instance.new("Frame"); Sidebar.Position=UDim2.fromOffset(9,73); Sidebar.Size=UDim2.fromOffset(160,418); Sidebar.BorderSizePixel=0; Sidebar.Parent=Main; Corner(Sidebar,11); Reg("Panels",Sidebar)
+local SideTitle=Instance.new("TextLabel"); SideTitle.BackgroundTransparency=1; SideTitle.Position=UDim2.fromOffset(12,9); SideTitle.Size=UDim2.new(1,-24,0,22); SideTitle.Text="CONTROL CENTER"; SideTitle.Font=Enum.Font.GothamBold; SideTitle.TextSize=10; SideTitle.TextXAlignment=Enum.TextXAlignment.Left; SideTitle.Parent=Sidebar; Reg("AccentLabels",SideTitle)
+local SideButtons=Instance.new("Frame"); SideButtons.BackgroundTransparency=1; SideButtons.Position=UDim2.fromOffset(7,38); SideButtons.Size=UDim2.new(1,-14,1,-45); SideButtons.Parent=Sidebar
+local sl=Instance.new("UIListLayout",SideButtons); sl.Padding=UDim.new(0,6)
+
+local Content=Instance.new("Frame"); Content.Position=UDim2.fromOffset(178,73); Content.Size=UDim2.new(1,-187,1,-82); Content.BorderSizePixel=0; Content.Parent=Main; Corner(Content,11); Reg("Panels",Content)
+local Pages={}
+local function Page(name)
+	local p=Instance.new("ScrollingFrame"); p.Name=name; p.Size=UDim2.fromScale(1,1); p.BackgroundTransparency=1; p.BorderSizePixel=0; p.ScrollBarThickness=3; p.AutomaticCanvasSize=Enum.AutomaticSize.Y; p.CanvasSize=UDim2.new(); p.Visible=false; p.Parent=Content
+	local pad=Instance.new("UIPadding",p); pad.PaddingTop=UDim.new(0,10); pad.PaddingBottom=UDim.new(0,14); pad.PaddingLeft=UDim.new(0,10); pad.PaddingRight=UDim.new(0,10)
+	local l=Instance.new("UIListLayout",p); l.Padding=UDim.new(0,7); l.SortOrder=Enum.SortOrder.LayoutOrder
+	Pages[name]=p; return p
+end
+local Home=Page("HOME"); local PlayerPage=Page("PLAYER"); local FlyPage=Page("FLY"); local ToolsPage=Page("TOOLS"); local SystemPage=Page("SYSTEM"); local SettingsPage=Page("SETTINGS"); local ProfilesPage=Page("PROFILES")
+
+local function Button(parent,text,cb)
+	local b=Instance.new("TextButton")
+	b.Size=UDim2.new(1,0,0,58)
+	b.BackgroundColor3=ButtonBaseColor()
+	b.TextColor3=ButtonTextColor()
+	b.Text=text
+	b.TextTransparency=1
+	b.Font=Enum.Font.GothamSemibold
+	b.TextSize=12
+	b.AutoButtonColor=false
+	b.Parent=parent
+	Corner(b,10)
+
+	local s=Instance.new("UIStroke",b)
+	s.Transparency=.72
+	s.Thickness=1
+	s.Color=Accent()
+
+	local iconBox=Instance.new("Frame")
+	iconBox.Name="IconBox"
+	iconBox.Size=UDim2.fromOffset(40,40)
+	iconBox.Position=UDim2.fromOffset(9,9)
+	iconBox.BackgroundColor3=Custom("Icon", Accent())
+	iconBox.BackgroundTransparency=.72
+	iconBox.BorderSizePixel=0
+	iconBox.Parent=b
+	Corner(iconBox,10)
+	Reg("Icons",iconBox)
+
+	local icon=Instance.new("TextLabel")
+	icon.Name="ButtonIcon"
+	icon.Size=UDim2.fromScale(1,1)
+	icon.BackgroundTransparency=1
+	icon.Text=ButtonIcon(text)
+	icon.Font=Enum.Font.GothamBlack
+	icon.TextSize=19
+	icon.TextColor3=Color3.new(1,1,1)
+	icon.Parent=iconBox
+	Reg("AccentLabels",icon)
+
+	local title=Instance.new("TextLabel")
+	title.Name="ButtonTitle"
+	title.BackgroundTransparency=1
+	title.Position=UDim2.fromOffset(59,7)
+	title.Size=UDim2.new(1,-145,0,22)
+	title.TextColor3=ButtonTextColor()
+	title.Text=select(2,text:match("^(%S+)%s*(.*)$")) or text
+	if title.Text=="" then title.Text=text end
+	title.Font=Enum.Font.GothamBold
+	title.TextSize=12
+	title.TextXAlignment=Enum.TextXAlignment.Left
+	title.TextTruncate=Enum.TextTruncate.AtEnd
+	title.Parent=b
+	Reg("Labels",title)
+
+	local desc=Instance.new("TextLabel")
+	desc.Name="ButtonDesc"
+	desc.BackgroundTransparency=1
+	desc.Position=UDim2.fromOffset(59,29)
+	desc.Size=UDim2.new(1,-145,0,18)
+	desc.Text="VORTEX ACTION  •  Toca para usar"
+	desc.Font=Enum.Font.Gotham
+	desc.TextSize=9
+	desc.TextColor3=Accent()
+	desc.TextXAlignment=Enum.TextXAlignment.Left
+	desc.TextTruncate=Enum.TextTruncate.AtEnd
+	desc.Parent=b
+	Reg("AccentLabels",desc)
+
+	local arrow=Instance.new("TextLabel")
+	arrow.Name="ButtonArrow"
+	arrow.BackgroundTransparency=1
+	arrow.AnchorPoint=Vector2.new(1,.5)
+	arrow.Position=UDim2.new(1,-12,.5,0)
+	arrow.Size=UDim2.fromOffset(24,24)
+	arrow.Text="›"
+	arrow.Font=Enum.Font.GothamBold
+	arrow.TextSize=22
+	arrow.TextColor3=Accent()
+	arrow.Parent=b
+	Reg("AccentLabels",arrow)
+
+	Reg("Buttons",b); Reg("Strokes",s)
+	b.Activated:Connect(function() if cb then cb(b) end end)
+	return b
+end
+local function Label(parent,text)
+	local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,0,0,27); l.BackgroundTransparency=1; l.Text=text; l.Font=Enum.Font.GothamBold; l.TextSize=13; l.TextXAlignment=Enum.TextXAlignment.Left; l.Parent=parent; Reg("Labels",l); return l
+end
+local function Toggle(parent,text,key,cb)
+	local b
+	b=Button(parent,text,function()
+		State[key]=not State[key]
+		SetButtonText(b,text..": "..(State[key] and "ON" or "OFF"))
+		b.BackgroundColor3=State[key] and ButtonOnColor() or ButtonOffColor()
+		if cb then cb(State[key]) end
+	end)
+	b:SetAttribute("VortexToggle",true)
+	SetButtonText(b,text..": "..(State[key] and "ON" or "OFF"))
+	b.BackgroundColor3=State[key] and ButtonOnColor() or ButtonOffColor()
+	return b
+end
+local function OpenPage(n)
+	for _,p in pairs(Pages) do p.Visible=false end
+	Pages[n].Visible=true; State.CurrentPage=n
+end
+
+for _,d in ipairs({{"HOME","⌂"},{"PLAYER","♙"},{"FLY","✈"},{"TOOLS","⚒"},{"SYSTEM","▣"},{"PROFILES","★"},{"SETTINGS","⚙"}}) do
+	Button(SideButtons,d[2].."  "..d[1],function() OpenPage(d[1]) end)
+end
+
+Label(ProfilesPage,"⭐ PROFILES")
+Label(Home,"WELCOME")
+local profile=Instance.new("Frame"); profile.Size=UDim2.new(1,0,0,100); profile.BorderSizePixel=0; profile.Parent=Home; Corner(profile,10); Reg("Panels",profile)
+local ha=Instance.new("ImageLabel"); ha.Size=UDim2.fromOffset(70,70); ha.Position=UDim2.fromOffset(14,14); ha.BackgroundTransparency=1; ha.Image=Avatar.Image; ha.Parent=profile; Corner(ha,35)
+local gr=Instance.new("TextLabel"); gr.BackgroundTransparency=1; gr.Position=UDim2.fromOffset(98,13); gr.Size=UDim2.new(1,-110,0,25); gr.Text="Hola, "..LP.DisplayName.." 👋"; gr.Font=Enum.Font.GothamBold; gr.TextSize=17; gr.TextXAlignment=Enum.TextXAlignment.Left; gr.Parent=profile; Reg("Labels",gr)
+local ac=Instance.new("TextLabel"); ac.BackgroundTransparency=1; ac.Position=UDim2.fromOffset(98,40); ac.Size=UDim2.new(1,-110,0,18); ac.Text="@"..LP.Name; ac.Font=Enum.Font.Gotham; ac.TextSize=11; ac.TextXAlignment=Enum.TextXAlignment.Left; ac.Parent=profile; Reg("Labels",ac)
+local md=Instance.new("TextLabel"); md.BackgroundTransparency=1; md.Position=UDim2.fromOffset(98,63); md.Size=UDim2.new(1,-110,0,18); md.Text="📱 MOBILE DEFAULT  •  VORTEX 3.0"; md.Font=Enum.Font.Gotham; md.TextSize=10; md.TextXAlignment=Enum.TextXAlignment.Left; md.Parent=profile; Reg("Labels",md)
+Label(Home,"MODULES")
+Button(Home,"⚡ MOVEMENT  •  Sprint / Noclip",function() OpenPage("PLAYER") end)
+Button(Home,"✈️ FLIGHT  •  Vortex Fly",function() OpenPage("FLY") end)
+Button(Home,"🧰 TOOLS  •  Physical / Special",function() OpenPage("TOOLS") end)
+Button(Home,"👁 SPECTATOR",function() OpenPage("TOOLS") end)
+Button(Home,"🎨 SYSTEM  •  Themes / RGB",function() OpenPage("SETTINGS") end)
+
+Label(PlayerPage,"MOVEMENT")
+Toggle(PlayerPage,"👻 NOCLIP","Noclip")
+Toggle(PlayerPage,"⚡ SPRINT","Sprint")
+Toggle(PlayerPage,"🦘 INFINITE JUMP","InfiniteJump")
+Button(PlayerPage,"❤️ MAX HEALTH",function() local h=Humanoid(); if h then h.MaxHealth=1000;h.Health=1000 end end)
+Button(PlayerPage,"💀 RESET CHARACTER",function() local h=Humanoid();if h then h.Health=0 end end)
+Button(PlayerPage,"SPEED -",function() State.Speed=math.max(1,State.Speed-2) end)
+Button(PlayerPage,"SPEED +",function() State.Speed+=2 end)
+Button(PlayerPage,"JUMP POWER -",function() State.JumpPower=math.max(1,State.JumpPower-5) end)
+Button(PlayerPage,"JUMP POWER +",function() State.JumpPower+=5 end)
+
+local FlyAttachment,FlyVelocity
+local FlyTool
+local function StopFly()
+	if FlyVelocity then FlyVelocity:Destroy();FlyVelocity=nil end
+	if FlyAttachment then FlyAttachment:Destroy();FlyAttachment=nil end
+end
+local function StartFly()
+	local r=Root(); if not r then return end
+	StopFly()
+	FlyAttachment=Instance.new("Attachment",r); FlyAttachment.Name="VortexFlyAttachment"
+	FlyVelocity=Instance.new("LinearVelocity",r); FlyVelocity.Name="VortexFlyVelocity"; FlyVelocity.Attachment0=FlyAttachment; FlyVelocity.RelativeTo=Enum.ActuatorRelativeTo.World; FlyVelocity.MaxForce=math.huge; FlyVelocity.VectorVelocity=Vector3.zero
+end
+local function SetFly(v)
+	State.Fly=v
+	if v then
+		StartFly()
+	else
+		StopFly()
+		local r=Root()
+		if r then r.AssemblyLinearVelocity=Vector3.zero end
+	end
+end
+
+local function FlyDirection()
+	local cam=workspace.CurrentCamera;if not cam then return Vector3.zero end
+	local d=Vector3.zero
+	if State.FlyForward then d+=cam.CFrame.LookVector end
+	if State.FlyBackward then d-=cam.CFrame.LookVector end
+	if State.FlyRight then d+=cam.CFrame.RightVector end
+	if State.FlyLeft then d-=cam.CFrame.RightVector end
+	if State.FlyUp then d+=Vector3.yAxis end
+	if State.FlyDown then d-=Vector3.yAxis end
+	return d.Magnitude>0 and d.Unit or Vector3.zero
+end
+
+--========================================================
+-- FLY PAGE • DEDICATED FLOATING CONTROLLER
+--========================================================
+
+Label(FlyPage,"✈️ VORTEX FLY")
+
+-- Floating Fly controller, similar to the Spectator mini UI.
+local FlyController
+
+local FlyOpenButton=Button(FlyPage,"✈️ OPEN FLY CONTROLLER",function()
+	-- The actual controls live in the small floating controller.
+	FlyController.Visible=true
+end)
+
+FlyController=Instance.new("Frame")
+FlyController.Name="VortexFlyController"
+FlyController.AnchorPoint=Vector2.new(.5,0)
+FlyController.Position=UDim2.fromScale(.5,.20)
+FlyController.Size=UDim2.fromOffset(310,235)
+FlyController.BorderSizePixel=0
+FlyController.Visible=false
+FlyController.Parent=GUI
+Corner(FlyController,14)
+Reg("Panels",FlyController)
+
+local FlyTitle=Instance.new("TextLabel")
+FlyTitle.BackgroundTransparency=1
+FlyTitle.Position=UDim2.fromOffset(14,7)
+FlyTitle.Size=UDim2.new(1,-60,0,22)
+FlyTitle.Text="✈️ VORTEX FLY"
+FlyTitle.Font=Enum.Font.GothamBold
+FlyTitle.TextSize=12
+FlyTitle.TextXAlignment=Enum.TextXAlignment.Left
+FlyTitle.Parent=FlyController
+Reg("AccentLabels",FlyTitle)
+
+local FlyStateLabel=Instance.new("TextLabel")
+FlyStateLabel.BackgroundTransparency=1
+FlyStateLabel.Position=UDim2.fromOffset(14,29)
+FlyStateLabel.Size=UDim2.new(1,-60,0,17)
+FlyStateLabel.Text="OFF  •  SPEED 70"
+FlyStateLabel.Font=Enum.Font.Gotham
+FlyStateLabel.TextSize=9
+FlyStateLabel.TextXAlignment=Enum.TextXAlignment.Left
+FlyStateLabel.Parent=FlyController
+Reg("Labels",FlyStateLabel)
+
+local FlyClose=Instance.new("TextButton")
+FlyClose.Size=UDim2.fromOffset(34,34)
+FlyClose.Position=UDim2.new(1,-42,0,7)
+FlyClose.Text="×"
+FlyClose.Font=Enum.Font.GothamBold
+FlyClose.TextSize=21
+FlyClose.AutoButtonColor=false
+FlyClose.Parent=FlyController
+Corner(FlyClose,9)
+Reg("Buttons",FlyClose)
+
+local function FlyMiniButton(text,pos,size)
+	local b=Instance.new("TextButton")
+	b.Size=size or UDim2.fromOffset(72,40)
+	b.Position=pos
+	b.Text=text
+	b.Font=Enum.Font.GothamBold
+	b.TextSize=11
+	b.AutoButtonColor=false
+	b.Parent=FlyController
+	Corner(b,9)
+	Reg("Buttons",b)
+	return b
+end
+
+local FlyToggle=FlyMiniButton("✈️ FLY: OFF",UDim2.fromOffset(14,52),UDim2.new(1,-28,0,36))
+
+local FlyUpBtn=FlyMiniButton("⬆ UP",UDim2.fromOffset(14,96))
+local FlyDownBtn=FlyMiniButton("⬇ DOWN",UDim2.fromOffset(92,96))
+local FlyLeftBtn=FlyMiniButton("◀ LEFT",UDim2.fromOffset(170,96))
+local FlyRightBtn=FlyMiniButton("▶ RIGHT",UDim2.fromOffset(248,96),UDim2.fromOffset(48,40))
+
+local FlyBackBtn=FlyMiniButton("◀ BACK",UDim2.fromOffset(53,140),UDim2.fromOffset(82,38))
+local FlyForwardBtn=FlyMiniButton("FORWARD ▶",UDim2.fromOffset(145,140),UDim2.fromOffset(112,38))
+
+local FlySpeedMinus=FlyMiniButton("−",UDim2.fromOffset(14,184),UDim2.fromOffset(48,36))
+local FlySpeedPlus=FlyMiniButton("+",UDim2.fromOffset(248,184),UDim2.fromOffset(48,36))
+local FlyReset=FlyMiniButton("↻ RESET",UDim2.fromOffset(76,184),UDim2.fromOffset(164,36))
+
+local function RefreshFlyController()
+	local sliderMode = State.ControlsMode=="SLIDERS"
+	FlySpeedMinus.Visible=not sliderMode; FlySpeedPlus.Visible=not sliderMode
+	FlyToggle.Text=State.Fly and "✈️ FLY: ON" or "✈️ FLY: OFF"
+	FlyStateLabel.Text=(State.Fly and "ON" or "OFF").."  •  SPEED "..State.FlySpeed
+	FlyUpBtn.Text=State.FlyUp and "⬆ UP ✓" or "⬆ UP"
+	FlyDownBtn.Text=State.FlyDown and "⬇ DOWN ✓" or "⬇ DOWN"
+	FlyLeftBtn.Text=State.FlyLeft and "◀ LEFT ✓" or "◀ LEFT"
+	FlyRightBtn.Text=State.FlyRight and "▶ RIGHT ✓" or "▶ RIGHT"
+	FlyBackBtn.Text=State.FlyBackward and "◀ BACK ✓" or "◀ BACK"
+	FlyForwardBtn.Text=State.FlyForward and "FORWARD ▶ ✓" or "FORWARD ▶"
+end
+
+FlyToggle.Activated:Connect(function()
+	SetFly(not State.Fly)
+	RefreshFlyController()
+end)
+
+FlyUpBtn.Activated:Connect(function()
+	State.FlyUp=not State.FlyUp
+	RefreshFlyController()
+end)
+
+FlyDownBtn.Activated:Connect(function()
+	State.FlyDown=not State.FlyDown
+	RefreshFlyController()
+end)
+
+FlyLeftBtn.Activated:Connect(function()
+	State.FlyLeft=not State.FlyLeft
+	RefreshFlyController()
+end)
+
+FlyRightBtn.Activated:Connect(function()
+	State.FlyRight=not State.FlyRight
+	RefreshFlyController()
+end)
+
+FlyBackBtn.Activated:Connect(function()
+	State.FlyBackward=not State.FlyBackward
+	RefreshFlyController()
+end)
+
+FlyForwardBtn.Activated:Connect(function()
+	State.FlyForward=not State.FlyForward
+	RefreshFlyController()
+end)
+
+FlySpeedMinus.Activated:Connect(function()
+	State.FlySpeed=math.max(10,State.FlySpeed-10)
+	RefreshFlyController()
+end)
+
+FlySpeedPlus.Activated:Connect(function()
+	State.FlySpeed=math.min(500,State.FlySpeed+10)
+	RefreshFlyController()
+end)
+
+FlyReset.Activated:Connect(function()
+	State.FlyUp=false
+	State.FlyDown=false
+	State.FlyLeft=false
+	State.FlyRight=false
+	State.FlyForward=false
+	State.FlyBackward=false
+	State.FlySpeed=70
+	SetFly(false)
+	RefreshFlyController()
+end)
+
+FlyClose.Activated:Connect(function()
+	FlyController.Visible=false
+end)
+
+-- Dragging for mobile and PC.
+local fd=false
+local fds
+local fsp
+
+FlyTitle.InputBegan:Connect(function(i)
+	if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+		fd=true
+		fds=i.Position
+		fsp=FlyController.Position
+		i.Changed:Connect(function()
+			if i.UserInputState==Enum.UserInputState.End then fd=false end
+		end)
+	end
+end)
+
+UIS.InputChanged:Connect(function(i)
+	if fd and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+		local d=i.Position-fds
+		FlyController.Position=UDim2.new(fsp.X.Scale,fsp.X.Offset+d.X,fsp.Y.Scale,fsp.Y.Offset+d.Y)
+	end
+end)
+
+RefreshFlyController()
+
+local Categories={"PHYSICAL","SPECIAL","FUN","UTILITY","VISUAL","WORLD"}
+local CategoryObjects={PHYSICAL={},SPECIAL={},FUN={},UTILITY={},VISUAL={},WORLD={}}
+local CategoryButtons={}
+local bar=Instance.new("ScrollingFrame"); bar.Name="CategoryBar"; bar.Size=UDim2.new(1,-20,0,42); bar.BackgroundTransparency=1; bar.BorderSizePixel=0; bar.ScrollBarThickness=2; bar.ScrollingDirection=Enum.ScrollingDirection.X; bar.CanvasSize=UDim2.new(0,0,0,0); bar.AutomaticCanvasSize=Enum.AutomaticSize.X; bar.LayoutOrder=1; bar.Parent=ToolsPage
+local bl=Instance.new("UIListLayout",bar); bl.FillDirection=Enum.FillDirection.Horizontal; bl.HorizontalAlignment=Enum.HorizontalAlignment.Left; bl.Padding=UDim.new(0,5)
+local SelectCategory
+local function RegTool(cat,o) table.insert(CategoryObjects[cat],o); return o end
+local function ToolLabel(cat,t) local l=Label(ToolsPage,t);l.LayoutOrder=2;return RegTool(cat,l) end
+local function ToolButton(cat,t,cb) local b=Button(ToolsPage,t,cb);b.LayoutOrder=3;local d=b:FindFirstChild("ButtonDesc");if d then d.Text="TOOL  •  EQUIP / ACTIVATE" end;return RegTool(cat,b) end
+
+for _,cat in ipairs(Categories) do
+	local cb=Instance.new("TextButton")
+	cb.Name="Category_"..cat
+	cb.Size=UDim2.fromOffset(92,36)
+	cb.LayoutOrder=table.find(Categories,cat) or 1
+	cb.BackgroundColor3=CategoryInactiveColor()
+	cb.Text=cat
+	cb.Font=Enum.Font.GothamBold
+	cb.TextSize=8
+	cb.AutoButtonColor=false
+	cb.Parent=bar
+	Corner(cb,8)
+	local cs=Instance.new("UIStroke",cb)
+	cs.Transparency=.55
+	cs.Thickness=1
+	cs.Color=Accent()
+	Reg("Buttons",cb)
+	Reg("Strokes",cs)
+	CategoryButtons[cat]=cb
+end
+
+SelectCategory=function(cat)
+	State.CurrentToolCategory=cat
+	for _,name in ipairs(Categories) do
+		local selected=(name==cat)
+		local cb=CategoryButtons[name]
+		if cb then
+			cb.BackgroundColor3=selected and CategoryActiveColor() or CategoryInactiveColor()
+			cb.TextColor3=selected and Color3.new(1,1,1) or ButtonTextColor()
+		end
+		for _,obj in ipairs(CategoryObjects[name]) do
+			if obj and obj.Parent then
+				obj.Visible=selected
+			end
+		end
+	end
+end
+
+for _,cat in ipairs(Categories) do
+	CategoryButtons[cat].Activated:Connect(function()
+		SelectCategory(cat)
+	end)
+end
+
+-- Physical tools
+ToolLabel("PHYSICAL","🧰 PHYSICAL TOOLS")
+ToolButton("PHYSICAL","📍 TELEPORT TOOL",function()
+	local bp=LP:FindFirstChildOfClass("Backpack");if not bp then return end
+	local old=bp:FindFirstChild("Vortex Teleport");if old then old:Destroy() end
+	local t=Instance.new("Tool");t.Name="Vortex Teleport";t.RequiresHandle=false;t.CanBeDropped=false
+	t.Activated:Connect(function() local m=LP:GetMouse();local r=Root();if r and m.Hit then r.CFrame=m.Hit+Vector3.new(0,3,0) end end);t.Parent=bp;Notify("VORTEX","Teleport Tool creada 📍")
+end)
+
+local function GiveHoverboard()
+	local bp=LP:FindFirstChildOfClass("Backpack")
+	if not bp then return end
+
+	for _,x in ipairs({
+		bp:FindFirstChild("Vortex Hoverboard"),
+		Character() and Character():FindFirstChild("Vortex Hoverboard")
+	}) do
+		if x then x:Destroy() end
+	end
+
+	local t=Instance.new("Tool")
+	t.Name="Vortex Hoverboard"
+	t.RequiresHandle=true
+	t.CanBeDropped=false
+	t.ToolTip="3D Hoverboard • R6/R15 • Tap to toggle"
+
+	local h=Instance.new("Part")
+	h.Name="Handle"
+	h.Size=Vector3.new(.55,.3,1.7)
+	h.Material=Enum.Material.Neon
+	h.Color=Accent()
+	h.Transparency=.08
+	h.CanCollide=false; h.CanTouch=false; h.CanQuery=false; h.Massless=true
+	h.Parent=t
+
+	local board=nil
+	local motor=nil
+	local connection=nil
+	local active=false
+	local elapsed=0
+	local lastMove=Vector3.zero
+	local controlGui=nil
+	local boostUntil=0
+	local targetHeight=4.2
+	local hoverBaseY=0
+
+	local function makeControls()
+		if controlGui then controlGui:Destroy() end
+		controlGui=Instance.new("ScreenGui"); controlGui.Name="VortexHoverControls"; controlGui.ResetOnSpawn=false; controlGui.Parent=PG
+		local panel=Instance.new("Frame"); panel.Size=UDim2.fromOffset(160,300); panel.Position=UDim2.new(1,-175,0.5,-150); panel.BackgroundColor3=Themes[State.Theme].PANEL; panel.BackgroundTransparency=.08; panel.Parent=controlGui; Corner(panel,14)
+		local title=Instance.new("TextLabel"); title.Size=UDim2.new(1,0,0,34); title.BackgroundTransparency=1; title.Text="🛹 HOVERBOARD"; title.TextColor3=Themes[State.Theme].TEXT; title.Font=Enum.Font.GothamBold; title.TextSize=12; title.Parent=panel
+		local ps=Instance.new("UIStroke",panel);ps.Color=BorderColor();ps.Transparency=.45;ps.Thickness=1
+		local layout=Instance.new("UIListLayout",panel); layout.Padding=UDim.new(0,6); layout.HorizontalAlignment=Enum.HorizontalAlignment.Center; layout.VerticalAlignment=Enum.VerticalAlignment.Center
+		local pad=Instance.new("UIPadding",panel); pad.PaddingTop=UDim.new(0,38); pad.PaddingBottom=UDim.new(0,8); pad.PaddingLeft=UDim.new(0,10); pad.PaddingRight=UDim.new(0,10)
+		local function cbtn(text,cb) local b=Instance.new("TextButton"); b.Size=UDim2.new(1,0,0,38); b.BackgroundColor3=ButtonBaseColor(); b.TextColor3=ButtonTextColor(); b.Text=text; b.Font=Enum.Font.GothamBold; b.TextSize=11; b.Parent=panel; Corner(b,9); b.Activated:Connect(cb); return b end
+		cbtn("⚡ BOOST",function() boostUntil=os.clock()+2 end)
+		cbtn("🛹 HOVER",function() targetHeight=4.2; hoverBaseY=(Root() and Root().Position.Y or hoverBaseY) end)
+		cbtn("⬆ UP",function() targetHeight=math.min(12,targetHeight+1) end)
+		cbtn("⬇ DOWN",function() targetHeight=math.max(1.5,targetHeight-1) end)
+		cbtn("⏹ BRAKE",function() lastMove=Vector3.zero; local r2=Root(); if r2 then r2.AssemblyLinearVelocity=Vector3.new(0,r2.AssemblyLinearVelocity.Y,0) end end)
+		cbtn("❌ EXIT",function() remove() end)
+	end
+
+	local function part(parent,name,size,color,material,cf)
+		local p=Instance.new("Part")
+		p.Name=name; p.Size=size; p.Color=color; p.Material=material or Enum.Material.SmoothPlastic
+		p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.Massless=true; p.Anchored=false
+		p.CFrame=cf or CFrame.new()
+		p.Parent=parent
+		return p
+	end
+
+	local function weld(a,b)
+		local w=Instance.new("WeldConstraint")
+		w.Part0=a; w.Part1=b; w.Parent=b
+		return w
+	end
+
+	local function remove()
+		active=false
+		if connection then connection:Disconnect(); connection=nil end
+		if motor then motor:Destroy(); motor=nil end
+		if board then board:Destroy(); board=nil end
+		if controlGui then controlGui:Destroy(); controlGui=nil end
+	end
+
+	local function createBoard()
+		local character=Character(); local r=Root(); local hum=Humanoid()
+		if not character or not r or not hum then return false end
+		remove()
+
+		board=Instance.new("Model")
+		board.Name="VortexHoverboard3D"
+		board.Parent=character
+
+		local base=part(board,"Deck",Vector3.new(5.2,.28,1.35),Accent(),Enum.Material.Metal,r.CFrame*CFrame.new(0,-1.65,0))
+		local top=part(board,"TopDeck",Vector3.new(4.5,.10,1.05),Color3.fromRGB(25,28,38),Enum.Material.SmoothPlastic,base.CFrame*CFrame.new(0,.19,0))
+		local core=part(board,"EnergyCore",Vector3.new(3.0,.10,.18),Accent(),Enum.Material.Neon,base.CFrame*CFrame.new(0,.27,0))
+		local nose=part(board,"Nose",Vector3.new(.28,.36,1.5),Accent(),Enum.Material.Neon,base.CFrame*CFrame.new(2.48,.02,0))
+		local tail=part(board,"Tail",Vector3.new(.28,.36,1.5),Accent(),Enum.Material.Neon,base.CFrame*CFrame.new(-2.48,.02,0))
+
+		local rootPart=base
+		for _,obj in ipairs(board:GetChildren()) do
+			if obj:IsA("BasePart") and obj~=rootPart then weld(rootPart,obj) end
+		end
+
+		for _,x in ipairs({-1.65,1.65}) do
+			local motorHousing=part(board,"Motor",Vector3.new(.48,.38,.9),Color3.fromRGB(35,38,48),Enum.Material.Metal,base.CFrame*CFrame.new(x,-.38,0))
+			weld(rootPart,motorHousing)
+			local glow=part(board,"WheelGlow",Vector3.new(.62,.18,.62),Accent(),Enum.Material.Neon,base.CFrame*CFrame.new(x,-.62,0)*CFrame.Angles(math.rad(90),0,0))
+			glow.Shape=Enum.PartType.Cylinder
+			weld(rootPart,glow)
+		end
+
+		motor=Instance.new("Motor6D")
+		motor.Name="VortexHoverboardMotor"
+		motor.Part0=r
+		motor.Part1=rootPart
+		motor.C0=CFrame.new(0,-1.65,0)
+		motor.Parent=r
+
+		active=true; elapsed=0; lastMove=Vector3.zero; targetHeight=4.2; hoverBaseY=r.Position.Y; makeControls()
+
+		connection=RunService.Heartbeat:Connect(function(dt)
+			if not active or not board or not board.Parent or not r.Parent then return end
+			elapsed += dt
+			local move=hum.MoveDirection
+			local horizontal=Vector3.new(move.X,0,move.Z)
+			local moving=horizontal.Magnitude>.05
+			if moving then
+				horizontal=horizontal.Unit*State.HoverSpeed*(os.clock()<boostUntil and 2 or 1)
+				lastMove=horizontal
+			else
+				lastMove=lastMove*.90
+			end
+
+			-- Mantiene al jugador elevado: el hoverboard NO toca el suelo.
+			-- El ascenso es suave y se corrige continuamente si cae.
+			local desiredY=hoverBaseY+targetHeight
+			local verticalError=desiredY-r.Position.Y
+			local yVelocity=math.clamp(verticalError*8-r.AssemblyLinearVelocity.Y*2, -35, 35)
+			r.AssemblyLinearVelocity=Vector3.new(lastMove.X,yVelocity,lastMove.Z)
+
+			local bob=math.sin(elapsed*8)*.07
+			local roll=moving and math.sin(elapsed*10)*math.rad(5) or 0
+			local pitch=moving and math.rad(3) or 0
+			motor.Transform=CFrame.new(0,bob,0)*CFrame.Angles(pitch,0,roll)
+
+			for _,obj in ipairs(board:GetDescendants()) do
+				if obj:IsA("BasePart") and (obj.Name=="EnergyCore" or obj.Name=="Nose" or obj.Name=="Tail" or obj.Name=="WheelGlow") then
+					obj.Color=Accent()
+				end
+			end
+		end)
+		return true
+	end
+
+	t.Activated:Connect(function()
+		if active then
+			remove()
+			Notify("VORTEX","Hoverboard desactivada 🛹")
+		else
+			if createBoard() then Notify("VORTEX","Hoverboard 3D activada • "..State.HoverSpeed.." ⚡🛹") end
+		end
+	end)
+	t.Unequipped:Connect(function() remove() end)
+	t.Destroying:Connect(remove)
+	t.Parent=bp
+	Notify("VORTEX","Hoverboard 3D añadida a tu mochila 🛹")
+end
+
+ToolButton("PHYSICAL","🛹 HOVERBOARD • GIVE TOOL",GiveHoverboard)
+
+ToolButton("PHYSICAL","🪝 GRAPPLING HOOK",function()
+	local bp=LP:FindFirstChildOfClass("Backpack");if not bp then return end
+	local old=bp:FindFirstChild("Vortex Grappling Hook") or (Character() and Character():FindFirstChild("Vortex Grappling Hook"));if old then old:Destroy() end
+	local t=Instance.new("Tool");t.Name="Vortex Grappling Hook";t.RequiresHandle=true;t.CanBeDropped=false;t.ToolTip="Lanza un gancho • Saltar cancela"
+	local h=Instance.new("Part");h.Name="Handle";h.Size=Vector3.new(.35,.35,1.35);h.Material=Enum.Material.Metal;h.Color=Color3.fromRGB(55,55,65);h.CanCollide=false;h.Massless=true;h.Parent=t
+	local ring=Instance.new("Part");ring.Size=Vector3.new(.65,.65,.22);ring.Material=Enum.Material.Neon;ring.Color=Accent();ring.CanCollide=false;ring.Massless=true;ring.Parent=t
+	local weld=Instance.new("WeldConstraint",ring);weld.Part0=h;weld.Part1=ring;ring.CFrame=h.CFrame*CFrame.new(0,0,-.65)
+	local active=false;local line;local projectile;local jumpConn
+	local function cancel()
+		active=false;if line then line:Destroy();line=nil end;if projectile then projectile:Destroy();projectile=nil end;if jumpConn then jumpConn:Disconnect();jumpConn=nil end
+	end
+	t.Unequipped:Connect(cancel);t.Destroying:Connect(cancel)
+	t.Activated:Connect(function()
+		local r=Root();local m=LP:GetMouse();if not r or not m.Hit then return end
+		cancel();active=true
+		projectile=Instance.new("Part");projectile.Shape=Enum.PartType.Ball;projectile.Size=Vector3.new(.55,.55,.55);projectile.Material=Enum.Material.Neon;projectile.Color=Accent();projectile.CanCollide=false;projectile.CanTouch=false;projectile.CanQuery=false;projectile.Anchored=true;projectile.Parent=workspace
+		local a0=Instance.new("Attachment",h);local a1=Instance.new("Attachment",projectile)
+		line=Instance.new("Beam");line.Attachment0=a0;line.Attachment1=a1;line.Width0=.08;line.Width1=.05;line.FaceCamera=true;line.Color=ColorSequence.new(Accent());line.Parent=workspace
+		local target=m.Hit.Position;local startPos=h.Position;local travel=0;local duration=math.max(.15,(target-startPos).Magnitude/180)
+		jumpConn=UIS.JumpRequest:Connect(cancel)
+		task.spawn(function()
+			local t0=os.clock()
+			while active and projectile and projectile.Parent do
+				local p=math.clamp((os.clock()-t0)/duration,0,1);local pos=startPos:Lerp(target,p);projectile.CFrame=CFrame.new(pos)
+				if p>=1 then break end
+				RunService.RenderStepped:Wait()
+			end
+			if not active then return end
+			-- Stay attached at the destination until the player jumps or the tool is cancelled.
+			while active and projectile and projectile.Parent and r.Parent do
+				local d=target-r.Position
+				if d.Magnitude>4 then r.AssemblyLinearVelocity=d.Unit*math.min(d.Magnitude*5,180) else r.AssemblyLinearVelocity=Vector3.new(0,r.AssemblyLinearVelocity.Y,0) end
+				RunService.Heartbeat:Wait()
+			end
+		end)
+	end)
+	t.Parent=bp;Notify("VORTEX","Grappling Hook creada 🪝")
+end)
+
+-- Special
+-- Fun body shapes
+ToolLabel("FUN","🎭 BODY SHAPES")
+ToolButton("FUN","🍔 FAT",function()
+    ApplyBodyShape("FAT")
+    Notify("FUN","Forma: FAT 🍔")
+end)
+ToolButton("FUN","🪵 SKINNY",function()
+    ApplyBodyShape("SKINNY")
+    Notify("FUN","Forma: FLACO 🪵")
+end)
+ToolButton("FUN","🙂 NORMAL",function()
+    ApplyBodyShape("NORMAL")
+    Notify("FUN","Forma: NORMAL 🙂")
+end)
+
+ToolLabel("SPECIAL","🌀 SPECIAL / PHYSICS TOOLS")
+ToolButton("SPECIAL","🚀 ROCKET JUMP",function() local r=Root();if r then r.AssemblyLinearVelocity=Vector3.new(r.AssemblyLinearVelocity.X,120,r.AssemblyLinearVelocity.Z) end end)
+ToolButton("SPECIAL","🧲 GRAVITY PULSE",function() local r=Root();if not r then return end;for _,p in ipairs(workspace:GetPartBoundsInRadius(r.Position,35)) do if p:IsA("BasePart") and not p.Anchored then p.AssemblyLinearVelocity=(p.Position-r.Position).Unit*100 end end end)
+
+-- Body size
+ToolLabel("UTILITY","📐 BODY SIZE")
+ToolButton("UTILITY","🔹 SMALL",function()
+    SetBodySize("SMALL")
+    Notify("VORTEX","Tamaño: PEQUEÑO")
+end)
+ToolButton("UTILITY","🔸 NORMAL",function()
+    SetBodySize("NORMAL")
+    Notify("VORTEX","Tamaño: NORMAL")
+end)
+ToolButton("UTILITY","🔶 BIG",function()
+    SetBodySize("BIG")
+    Notify("VORTEX","Tamaño: GRANDE")
+end)
+
+-- Visual / spectator
+ToolLabel("VISUAL","👁 VISUAL TOOLS")
+ToolToggle = function(cat,text,key,cb) local b=Toggle(ToolsPage,text,key,cb);b.LayoutOrder=3;return RegTool(cat,b) end
+ToolToggle("VISUAL","👁 ESP","ESP",function(enabled) if enabled then for _,p in ipairs(Players:GetPlayers()) do UpdateESP(p) end else RemoveAllESP() end end)
+ToolButton("VISUAL","👁 SPECTATOR",function() end) -- callback assigned below
+
+-- World
+ToolLabel("WORLD","🌎 WORLD TOOLS")
+local WaypointBox=Instance.new("TextBox");WaypointBox.Size=UDim2.new(1,0,0,36);WaypointBox.PlaceholderText="Nombre del waypoint...";WaypointBox.ClearTextOnFocus=false;WaypointBox.Font=Enum.Font.Gotham;WaypointBox.TextSize=12;WaypointBox.Parent=ToolsPage;Corner(WaypointBox,8);Reg("TextBoxes",WaypointBox);RegTool("WORLD",WaypointBox)
+ToolButton("WORLD","📌 SAVE WAYPOINT",function() local r=Root();if not r then return end;local n=WaypointBox.Text;if n=="" then n="Waypoint "..(#State.Waypoints+1) end;State.Waypoints[n]=r.CFrame;WaypointBox.Text="";Notify("WORLD",n.." guardado 📌") end)
+ToolButton("WORLD","↩ LAST WAYPOINT",function() local r=Root();if not r then return end;local last;for _,cf in pairs(State.Waypoints) do last=cf end;if last then r.CFrame=last end end)
+
+-- Spectator UI
+local SG=Instance.new("Frame");SG.Name="SpectatorController";SG.AnchorPoint=Vector2.new(.5,0);SG.Position=UDim2.fromScale(.5,.08);SG.Size=UDim2.fromOffset(285,82);SG.BorderSizePixel=0;SG.Visible=false;SG.Parent=GUI;Corner(SG,14);Reg("Panels",SG)
+local ST=Instance.new("TextLabel");ST.BackgroundTransparency=1;ST.Position=UDim2.fromOffset(45,7);ST.Size=UDim2.new(1,-90,0,20);ST.Text="SPECTATOR";ST.Font=Enum.Font.GothamBold;ST.TextSize=11;ST.Parent=SG;Reg("AccentLabels",ST)
+local SN=Instance.new("TextLabel");SN.BackgroundTransparency=1;SN.Position=UDim2.fromOffset(45,29);SN.Size=UDim2.new(1,-90,0,18);SN.Text="Selecciona un jugador";SN.Font=Enum.Font.GothamSemibold;SN.TextSize=11;SN.TextTruncate=Enum.TextTruncate.AtEnd;SN.Parent=SG;Reg("Labels",SN)
+local function SBtn(text,pos)
+	local b=Instance.new("TextButton");b.Size=UDim2.fromOffset(36,36);b.Position=pos;b.Text=text;b.Font=Enum.Font.GothamBlack;b.TextSize=18;b.AutoButtonColor=false;b.Parent=SG;Corner(b,9);Reg("Buttons",b);return b
+end
+local Prev=SBtn("<",UDim2.fromOffset(6,38));local Next=SBtn(">",UDim2.new(1,-42,0,38));local Reset=SBtn("↻",UDim2.fromOffset(6,4));local Exit=SBtn("×",UDim2.new(1,-42,0,4))
+
+local sd=false;local sds;local ssp
+SG.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then sd=true;sds=i.Position;ssp=SG.Position;i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then sd=false end end)end end)
+UIS.InputChanged:Connect(function(i)if sd and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then local d=i.Position-sds;SG.Position=UDim2.new(ssp.X.Scale,ssp.X.Offset+d.X,ssp.Y.Scale,ssp.Y.Offset+d.Y)end end)
+
+local function SpectatorPlayers()
+	local a={};for _,p in ipairs(Players:GetPlayers())do if p~=LP then table.insert(a,p)end end
+	table.sort(a,function(x,y)return x.Name:lower()<y.Name:lower()end);return a
+end
+local function Spectate(p)
+	local c=p and p.Character;local h=c and c:FindFirstChildOfClass("Humanoid");if not h then return end
+	State.SpectatorTarget=p;workspace.CurrentCamera.CameraType=Enum.CameraType.Custom;workspace.CurrentCamera.CameraSubject=h;SN.Text=p.DisplayName.."  @"..p.Name
+end
+local function SpectatorIndex(i)
+	local a=SpectatorPlayers();if #a==0 then SN.Text="No hay jugadores";return end
+	if i<1 then i=#a end;if i>#a then i=1 end;State.SpectatorIndex=i;Spectate(a[i])
+end
+local function StopSpectator()
+	State.Spectator=false;State.SpectatorTarget=nil;State.SpectatorIndex=0;SG.Visible=false
+	local h=Humanoid();workspace.CurrentCamera.CameraType=Enum.CameraType.Custom;if h then workspace.CurrentCamera.CameraSubject=h end
+end
+local function StartSpectator()
+	local a=SpectatorPlayers();if #a==0 then Notify("SPECTATOR","No hay otros jugadores");return end
+	State.Spectator=true;SG.Visible=true;SpectatorIndex(1);Notify("SPECTATOR","Modo espectador activado 👁")
+end
+Prev.Activated:Connect(function()if State.Spectator then SpectatorIndex(State.SpectatorIndex-1)end end)
+Next.Activated:Connect(function()if State.Spectator then SpectatorIndex(State.SpectatorIndex+1)end end)
+Reset.Activated:Connect(function()local h=Humanoid();workspace.CurrentCamera.CameraType=Enum.CameraType.Custom;if h then workspace.CurrentCamera.CameraSubject=h end;State.SpectatorTarget=nil;SN.Text="Tu personaje" end)
+Exit.Activated:Connect(StopSpectator)
+Players.PlayerRemoving:Connect(function(p)if p==State.SpectatorTarget and State.Spectator then local a=SpectatorPlayers();if #a>0 then SpectatorIndex(math.min(State.SpectatorIndex,#a))else StopSpectator()end end end)
+
+-- assign spectator button (the last visual button)
+for _,o in ipairs(CategoryObjects.VISUAL) do
+	if o:IsA("TextButton") and o.Text=="👁 SPECTATOR" then o.Activated:Connect(StartSpectator) end
+end
+
+-- System
+Label(SystemPage,"SYSTEM MONITOR")
+local FPS=Button(SystemPage,"FPS: --");local PC=Button(SystemPage,"PLAYERS: --");local Session=Button(SystemPage,"SESSION: --");local Input=Button(SystemPage,"INPUT: --")
+Toggle(SystemPage,"⚡ PERFORMANCE","Performance");Toggle(SystemPage,"DEBUG","Debug")
+
+--========================================================
+-- DESTROY UI
+--========================================================
+local VortexDestroyed = false
+local function DestroyVortexUI()
+	if VortexDestroyed then return end
+	VortexDestroyed = true
+
+	pcall(function() SetFly(false) end)
+	pcall(function() StopSpectator() end)
+	pcall(function() RemoveAllESP() end)
+
+	-- Remove only Vortex UI objects/panels.
+	pcall(function()
+		if GUI then GUI:Destroy() end
+	end)
+end
+
+-- Slider / button control helpers
+local function MakeSlider(parent,labelText,minValue,maxValue,getValue,setValue,step)
+	local frame=Instance.new("Frame")
+	frame.Size=UDim2.new(1,0,0,72)
+	frame.BackgroundColor3=Themes[State.Theme].BUTTON
+	frame.BorderSizePixel=0
+	frame.Parent=parent
+	Corner(frame,10)
+	Reg("Panels",frame)
+	local label=Instance.new("TextLabel")
+	label.BackgroundTransparency=1; label.Position=UDim2.fromOffset(12,7); label.Size=UDim2.new(1,-90,0,20)
+	label.Text=labelText; label.Font=Enum.Font.GothamBold; label.TextSize=11; label.TextXAlignment=Enum.TextXAlignment.Left; label.Parent=frame; Reg("Labels",label)
+	local value=Instance.new("TextLabel")
+	value.BackgroundTransparency=1; value.AnchorPoint=Vector2.new(1,0); value.Position=UDim2.new(1,-12,0,7); value.Size=UDim2.fromOffset(70,20)
+	value.Font=Enum.Font.GothamBold; value.TextSize=11; value.TextXAlignment=Enum.TextXAlignment.Right; value.Parent=frame; Reg("AccentLabels",value)
+	local bar=Instance.new("Frame"); bar.Size=UDim2.new(1,-24,0,8); bar.Position=UDim2.fromOffset(12,42); bar.BorderSizePixel=0; bar.Parent=frame; Corner(bar,4); Reg("Strokes",Instance.new("UIStroke",bar))
+	local fill=Instance.new("Frame"); fill.BorderSizePixel=0; fill.Parent=bar; Corner(fill,4); Reg("AccentFrames",fill)
+	local knob=Instance.new("TextButton"); knob.AutoButtonColor=false; knob.Text=""; knob.Size=UDim2.fromOffset(20,20); knob.AnchorPoint=Vector2.new(.5,.5); knob.Position=UDim2.fromScale(0,.5); knob.Parent=bar; Corner(knob,10); Reg("Buttons",knob)
+	local draggingSlider=false
+	local function refresh(v)
+		v=math.clamp(v,minValue,maxValue); setValue(v); value.Text=tostring(math.floor(v)); local pct=(v-minValue)/(maxValue-minValue); fill.Size=UDim2.new(pct,0,1,0); knob.Position=UDim2.new(pct,0,.5,0)
+	end
+	local function setFromX(x)
+		local pct=math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1); local v=minValue+(maxValue-minValue)*pct; if step then v=math.round(v/step)*step end; refresh(v)
+	end
+	bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then draggingSlider=true; setFromX(i.Position.X) end end)
+	knob.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then draggingSlider=true end end)
+	UIS.InputChanged:Connect(function(i) if draggingSlider and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then setFromX(i.Position.X) end end)
+	UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then draggingSlider=false end end)
+	refresh(getValue())
+	return frame,refresh
+end
+
+local function AddAdjustSlider(parent,labelText,minValue,maxValue,getter,setter,step)
+	if State.ControlsMode=="SLIDERS" then return MakeSlider(parent,labelText,minValue,maxValue,getter,setter,step) end
+	local b=Button(parent,labelText,function() end)
+	return b
+end
+
+-- Settings
+Label(SettingsPage,"🎨 APPEARANCE")
+local ThemeButton;local RGBButton
+local function ApplyTheme()
+	local th=Themes[State.Theme] or Themes["Vortex Blue"]
+	local a=Accent()
+
+	-- Fondo principal
+	Main.BackgroundColor3=th.BG
+	Main.BackgroundTransparency=State.Transparency
+
+	-- Paneles principales: sidebar, contenido y header
+	for _,o in ipairs(Registry.Panels)do
+		if o.Parent then
+			o.BackgroundColor3=Custom("Panel", th.PANEL)
+		end
+	end
+
+	-- Tarjetas/botones: cada tema cambia tambien su contraste
+	for _,o in ipairs(Registry.Buttons)do
+		if o.Parent then
+			local sel=o.Name=="Category_"..State.CurrentToolCategory
+			local isToggle=o:GetAttribute("VortexToggle")
+			local isOn=isToggle and o.Text:find(": ON",1,true)~=nil
+			o.BackgroundColor3=sel and CategoryActiveColor() or (o.Name:sub(1,9)=="Category_" and CategoryInactiveColor() or (isToggle and (isOn and ButtonOnColor() or ButtonOffColor()) or ButtonBaseColor()))
+			o.TextColor3=sel and Color3.new(1,1,1) or ButtonTextColor()
+		end
+	end
+
+	-- Textos principales
+	for _,o in ipairs(Registry.Labels)do
+		if o.Parent then
+			o.TextColor3=th.TEXT
+		end
+	end
+
+	-- Textos secundarios/iconos/flechas
+	for _,o in ipairs(Registry.AccentLabels)do
+		if o.Parent then
+			o.TextColor3=a
+		end
+	end
+	for _,o in ipairs(Registry.AccentFrames)do
+		if o.Parent then o.BackgroundColor3=a end
+	end
+
+	-- Cajas de búsqueda y texto
+	for _,o in ipairs(Registry.TextBoxes)do
+		if o.Parent then
+			o.BackgroundColor3=Custom("Panel", th.BG)
+			o.TextColor3=Custom("Text", th.TEXT)
+			o.PlaceholderColor3=a
+		end
+	end
+
+	-- Bordes: RGB usa el acento animado; temas normales usan un borde propio
+	for _,o in ipairs(Registry.Strokes)do
+		if o.Parent then
+			o.Color=BorderColor()
+		end
+	end
+
+	-- Cuadros de iconos: el fondo es una variante del color del tema
+	for _,o in ipairs(Registry.Icons)do
+		if o.Parent then
+			o.BackgroundColor3=Custom("Icon", State.RGB and a or th.ICONBG)
+			o.BackgroundTransparency=.70
+		end
+	end
+
+	-- Descripciones de las tarjetas usan el tono secundario
+	for _,page in pairs(Pages)do
+		if page and page.Parent then
+			for _,o in ipairs(page:GetDescendants())do
+				if o:IsA("TextLabel") and o.Name=="ButtonDesc" then
+					o.TextColor3=State.RGB and a or th.MUTED
+				end
+			end
+		end
+	end
+
+	ThemeLabel.Text="THEME • "..State.Theme
+	ThemeLabel.TextColor3=a
+	local hoverGui=PG:FindFirstChild("VortexHoverControls")
+	if hoverGui then
+		local panel=hoverGui:FindFirstChildOfClass("Frame")
+		if panel then
+			panel.BackgroundColor3=Custom("Panel",th.PANEL)
+			for _,o in ipairs(panel:GetChildren()) do
+				if o:IsA("TextButton") then o.BackgroundColor3=ButtonBaseColor(); o.TextColor3=ButtonTextColor() end
+				if o:IsA("UIStroke") then o.Color=BorderColor() end
+			end
+		end
+	end
+end
+local themeList={"Vortex Blue","Cyan","Purple","Emerald","Crimson","Dark","White","Legacy"}
+ThemeButton=Button(SettingsPage,"🎨 THEME: "..State.Theme,function()
+	local i=table.find(themeList,State.Theme)or 1;i=i%#themeList+1;State.Theme=themeList[i];SetButtonText(ThemeButton,"🎨 THEME: "..State.Theme);ApplyTheme()
+end)
+RGBButton=Button(SettingsPage,"🌈 RGB: OFF",function()State.RGB=not State.RGB;SetButtonText(RGBButton,"🌈 RGB: "..(State.RGB and"ON"or"OFF"));ApplyTheme()end)
+Label(SettingsPage,"🎨 CUSTOM MENU COLORS")
+local CustomColorState={Button=Color3.fromRGB(18,38,67),ButtonText=Color3.fromRGB(235,245,255),ButtonOn=Color3.fromRGB(45,210,125),ButtonOff=Color3.fromRGB(210,65,80),CategoryActive=Color3.fromRGB(0,170,255),CategoryInactive=Color3.fromRGB(18,38,67),Icon=Color3.fromRGB(0,115,210),Border=Color3.fromRGB(0,110,210),Glow=Color3.fromRGB(0,170,255),Panel=Color3.fromRGB(13,24,43),Text=Color3.fromRGB(235,245,255)}
+local function SetCustomColor(name,c) CustomColorState[name]=c;State.CustomColors[name]=c;State.CustomColors.Enabled=true;ApplyTheme() end
+local CustomColorIndex={};local function CycleCustom(name) local palette={Color3.fromRGB(0,170,255),Color3.fromRGB(174,91,255),Color3.fromRGB(40,220,140),Color3.fromRGB(255,70,90),Color3.fromRGB(255,165,0),Color3.fromRGB(255,255,255),Color3.fromRGB(25,25,30)};local i=(CustomColorIndex[name] or 1)%#palette+1;CustomColorIndex[name]=i;SetCustomColor(name,palette[i]) end
+local function CustomColorButton(name,label) return Button(SettingsPage,label,function() CycleCustom(name) end) end
+CustomColorButton("Button","🔘 BUTTON COLOR")
+CustomColorButton("ButtonText","📝 BUTTON TEXT")
+CustomColorButton("ButtonOn","🟢 BUTTON ON")
+CustomColorButton("ButtonOff","🔴 BUTTON OFF")
+CustomColorButton("CategoryActive","📑 CATEGORY ACTIVE")
+CustomColorButton("CategoryInactive","📑 CATEGORY INACTIVE")
+CustomColorButton("Icon","◈ ICON COLOR")
+CustomColorButton("Border","🔲 BORDER COLOR")
+Button(SettingsPage,"🎨 APPLY CUSTOM COLORS",function()State.CustomColors.Enabled=true;ApplyTheme();Notify("CUSTOMIZE","Colores del menú aplicados 🎨")end)
+Button(SettingsPage,"↩ RESET CUSTOM COLORS",function()
+	State.CustomColors={Enabled=false,Button=nil,ButtonText=nil,ButtonOn=nil,ButtonOff=nil,CategoryActive=nil,CategoryInactive=nil,Icon=nil,Border=nil,Glow=nil,Panel=nil,Text=nil}
+	ApplyTheme();Notify("CUSTOMIZE","Colores restaurados ↩")
+end)
+Button(SettingsPage,"📱 MOBILE MODE",function()State.Device="MOBILE"end)
+Button(SettingsPage,"🖥 PC MODE",function()State.Device="PC"end)
+local ControlModeButton=Button(SettingsPage,"🎛 CONTROLS: BUTTONS",function()
+	State.ControlsMode=(State.ControlsMode=="BUTTONS") and "SLIDERS" or "BUTTONS"
+	SetButtonText(ControlModeButton,"🎛 CONTROLS: "..State.ControlsMode)
+	RefreshControlMode()
+	Notify("VORTEX","Controles: "..State.ControlsMode,2)
+end)
+Button(SettingsPage,"SIZE -",function()State.Scale=math.max(.65,State.Scale-.1)end)
+Button(SettingsPage,"SIZE +",function()State.Scale=math.min(1.3,State.Scale+.1)end)
+Label(SettingsPage,"🎚️ ADJUSTMENTS")
+local WalkSlider=select(1,MakeSlider(SettingsPage,"🏃 WALK SPEED",8,100,function() return State.Speed end,function(v) State.Speed=v end,1))
+local JumpSlider=select(1,MakeSlider(SettingsPage,"🦘 JUMP POWER",20,150,function() return State.JumpPower end,function(v) State.JumpPower=v end,1))
+local FlySlider=select(1,MakeSlider(SettingsPage,"✈️ FLY SPEED",10,300,function() return State.FlySpeed end,function(v) State.FlySpeed=v end,5))
+local HoverSlider=select(1,MakeSlider(SettingsPage,"🛹 HOVERBOARD SPEED",20,150,function() return State.HoverSpeed end,function(v) State.HoverSpeed=v end,1))
+local UISlider=select(1,MakeSlider(SettingsPage,"📐 UI SCALE %",65,130,function() return State.Scale*100 end,function(v) State.Scale=v/100 end,1))
+local WalkMinus=Button(SettingsPage,"🏃 WALK SPEED −",function() State.Speed=math.max(8,State.Speed-2) end)
+local WalkPlus=Button(SettingsPage,"🏃 WALK SPEED +",function() State.Speed=math.min(100,State.Speed+2) end)
+local JumpMinus=Button(SettingsPage,"🦘 JUMP POWER −",function() State.JumpPower=math.max(20,State.JumpPower-5) end)
+local JumpPlus=Button(SettingsPage,"🦘 JUMP POWER +",function() State.JumpPower=math.min(150,State.JumpPower+5) end)
+local FlyMinusCfg=Button(SettingsPage,"✈️ FLY SPEED −",function() State.FlySpeed=math.max(10,State.FlySpeed-5);RefreshFlyController() end)
+local FlyPlusCfg=Button(SettingsPage,"✈️ FLY SPEED +",function() State.FlySpeed=math.min(300,State.FlySpeed+5);RefreshFlyController() end)
+local HoverMinus=Button(SettingsPage,"🛹 HOVERBOARD SPEED −",function() State.HoverSpeed=math.max(20,State.HoverSpeed-5) end)
+local HoverPlus=Button(SettingsPage,"🛹 HOVERBOARD SPEED +",function() State.HoverSpeed=math.min(150,State.HoverSpeed+5) end)
+local ScaleMinus=Button(SettingsPage,"📐 UI SCALE −",function() State.Scale=math.max(.65,State.Scale-.05) end)
+local ScalePlus=Button(SettingsPage,"📐 UI SCALE +",function() State.Scale=math.min(1.3,State.Scale+.05) end)
+local function RefreshControlMode()
+	local sliders=State.ControlsMode=="SLIDERS"
+	for _,o in ipairs({WalkSlider,JumpSlider,FlySlider,HoverSlider,UISlider}) do o.Visible=sliders end
+	for _,o in ipairs({WalkMinus,WalkPlus,JumpMinus,JumpPlus,FlyMinusCfg,FlyPlusCfg,HoverMinus,HoverPlus,ScaleMinus,ScalePlus}) do o.Visible=not sliders end
+	FlySpeedMinus.Visible=not sliders; FlySpeedPlus.Visible=not sliders
+end
+RefreshControlMode()
+
+local DestroyButton = Button(SettingsPage,"🗑 DESTROY UI",function()
+	DestroyVortexUI()
+end)
+
+local Reopen=Instance.new("TextButton");Reopen.Size=UDim2.fromOffset(52,52);Reopen.Position=UDim2.new(0,12,.5,-26);Reopen.Text="V";Reopen.Font=Enum.Font.GothamBlack;Reopen.TextSize=22;Reopen.Visible=false;Reopen.AutoButtonColor=false;Reopen.Parent=GUI;Corner(Reopen,26);Reg("Buttons",Reopen)
+Minimize.Activated:Connect(function()State.Minimized=not State.Minimized;Sidebar.Visible=not State.Minimized;Content.Visible=not State.Minimized;ThemeLabel.Visible=not State.Minimized;Search.Visible=not State.Minimized;Minimize.Text=State.Minimized and"□"or"—";Main.Size=State.Minimized and UDim2.fromOffset(300,64)or UDim2.fromOffset(760,500)end)
+Close.Activated:Connect(function()Main.Visible=false;Reopen.Visible=true end)
+Reopen.Activated:Connect(function()Main.Visible=true;Reopen.Visible=false end)
+
+UIS.JumpRequest:Connect(function()if State.InfiniteJump then local h=Humanoid();if h then h:ChangeState(Enum.HumanoidStateType.Jumping)end end end)
+UIS.InputBegan:Connect(function(i,p)if p then return end;if i.KeyCode==Enum.KeyCode.F then SetFly(not State.Fly)end;if i.KeyCode==Enum.KeyCode.N then State.Noclip=not State.Noclip end;if i.KeyCode==Enum.KeyCode.LeftShift then State.Sprint=true end end)
+UIS.InputEnded:Connect(function(i)if i.KeyCode==Enum.KeyCode.LeftShift then State.Sprint=false end end)
+
+local function RemovePlayerESP(p)
+	if p==LP then return end
+	local c=p.Character;if not c then return end
+	local old=c:FindFirstChild("VortexESP");if old then old:Destroy() end
+end
+local function UpdateESP(p)
+	if p==LP then return end
+	local c=p.Character;if not c then return end
+	local old=c:FindFirstChild("VortexESP")
+	if State.ESP then
+		if not old then old=Instance.new("Highlight");old.Name="VortexESP";old.FillTransparency=.65;old.OutlineTransparency=.1;old.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop;old.Parent=c end
+		old.FillColor=Accent();old.OutlineColor=Accent()
+	elseif old then old:Destroy() end
+end
+local function RemoveAllESP()
+	State.ESP=false
+	for _,p in ipairs(Players:GetPlayers()) do RemovePlayerESP(p) end
+end
+for _,p in ipairs(Players:GetPlayers()) do
+	if p~=LP then p.CharacterAdded:Connect(function() task.wait(.25);UpdateESP(p) end) end
+end
+Players.PlayerAdded:Connect(function(p)
+	p.CharacterAdded:Connect(function() task.wait(.25);UpdateESP(p) end)
+end)
+
+
+--========================================================
+-- VORTEX BODY SIZE
+--========================================================
+
+local BodySizeMultipliers = {
+    SMALL = 0.6,
+    NORMAL = 1,
+    BIG = 1.6
+}
+
+local function SetBodySize(mode)
+    mode = string.upper(tostring(mode))
+    local multiplier = BodySizeMultipliers[mode]
+    if not multiplier then return false end
+
+    State.BodySize = mode
+
+    local character = LP.Character
+    if not character then return false end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+
+    -- R15: scale the avatar using its native body scale values.
+    local scaleNames = {
+        "BodyDepthScale",
+        "BodyHeightScale",
+        "BodyWidthScale",
+        "HeadScale"
+    }
+
+    local changed = false
+    for _, name in ipairs(scaleNames) do
+        local scale = humanoid:FindFirstChild(name)
+        if scale and scale:IsA("NumberValue") then
+            scale.Value = multiplier
+            changed = true
+        end
+    end
+
+    -- R6: resize body parts directly because R6 has no R15 scale values.
+    if not changed then
+        local parts = {
+            "Head", "Torso",
+            "Left Arm", "Right Arm",
+            "Left Leg", "Right Leg"
+        }
+
+        for _, name in ipairs(parts) do
+            local part = character:FindFirstChild(name)
+            if part and part:IsA("BasePart") then
+                part.Size = part:GetAttribute("VortexOriginalSize") or part.Size
+                if not part:GetAttribute("VortexOriginalSize") then
+                    part:SetAttribute("VortexOriginalSize", part.Size)
+                end
+                part.Size = part:GetAttribute("VortexOriginalSize") * multiplier
+            end
+        end
+    end
+
+    return true
+end
+
+local function ResetBodySize()
+    return SetBodySize("NORMAL")
+end
+
+LP.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    SetBodySize(State.BodySize)
+end)
+
+--========================================================
+-- VORTEX BODY SHAPES
+--========================================================
+
+local BodyShapeProfiles = {
+    NORMAL = {
+        torso = Vector3.new(2, 2, 1),
+        head = 1,
+        arm = Vector3.new(1, 2, 1),
+        leg = Vector3.new(1, 2, 1)
+    },
+    FAT = {
+        torso = Vector3.new(3.4, 2.5, 1.7),
+        head = 1.35,
+        arm = Vector3.new(1.35, 2.2, 1.35),
+        leg = Vector3.new(1.15, 2, 1.15)
+    },
+    SKINNY = {
+        torso = Vector3.new(0.75, 2.2, 0.55),
+        head = 0.8,
+        arm = Vector3.new(0.55, 2.15, 0.55),
+        leg = Vector3.new(0.6, 2.15, 0.6)
+    }
+}
+
+local function ApplyBodyShapeR6(character, profile)
+    local map = {
+        Torso = profile.torso,
+        ["Left Arm"] = profile.arm,
+        ["Right Arm"] = profile.arm,
+        ["Left Leg"] = profile.leg,
+        ["Right Leg"] = profile.leg
+    }
+
+    for name, size in pairs(map) do
+        local part = character:FindFirstChild(name)
+        if part and part:IsA("BasePart") then
+            local original = part:GetAttribute("VortexShapeOriginalSize")
+            if not original then
+                original = part.Size
+                part:SetAttribute("VortexShapeOriginalSize", original)
+            end
+            part.Size = original * Vector3.new(
+                size.X / 1,
+                size.Y / 2,
+                size.Z / 1
+            )
+        end
+    end
+
+    local head = character:FindFirstChild("Head")
+    if head and head:IsA("BasePart") then
+        local original = head:GetAttribute("VortexShapeOriginalSize")
+        if not original then
+            original = head.Size
+            head:SetAttribute("VortexShapeOriginalSize", original)
+        end
+        head.Size = original * profile.head
+    end
+end
+
+local function ApplyBodyShape(mode)
+    mode = string.upper(tostring(mode))
+    local profile = BodyShapeProfiles[mode]
+    if not profile then return false end
+
+    State.BodyShape = mode
+
+    local character = LP.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if not character or not humanoid then return false end
+
+    -- R15: use native body scale values where available.
+    if humanoid:FindFirstChild("BodyWidthScale") then
+        local width = humanoid:FindFirstChild("BodyWidthScale")
+        local depth = humanoid:FindFirstChild("BodyDepthScale")
+        local height = humanoid:FindFirstChild("BodyHeightScale")
+        local head = humanoid:FindFirstChild("HeadScale")
+
+        if mode == "FAT" then
+            width.Value = 1.65
+            if depth then depth.Value = 1.45 end
+            if height then height.Value = 1.1 end
+            if head then head.Value = 1.3 end
+        elseif mode == "SKINNY" then
+            width.Value = 0.55
+            if depth then depth.Value = 0.6 end
+            if height then height.Value = 1.05 end
+            if head then head.Value = 0.8 end
+        else
+            width.Value = 1
+            if depth then depth.Value = 1 end
+            if height then height.Value = 1 end
+            if head then head.Value = 1 end
+        end
+
+        return true
+    end
+
+    -- R6 fallback.
+    ApplyBodyShapeR6(character, profile)
+    return true
+end
+
+LP.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    ApplyBodyShape(State.BodyShape)
+end)
+
+--========================================================
+-- VORTEX LASER GUN + GOD MODE
+--========================================================
+
+local GodMode = false
+
+local function ApplyGodMode()
+	if not GodMode then
+		return
+	end
+
+	local character = LP.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+
+	if hum then
+		pcall(function()
+			hum.MaxHealth = math.huge
+			hum.Health = hum.MaxHealth
+		end)
+	end
+end
+
+local function RemoveVortexLaser()
+	local backpack = LP:FindFirstChildOfClass("Backpack")
+
+	if backpack then
+		local old = backpack:FindFirstChild("Vortex Laser Gun")
+		if old then
+			old:Destroy()
+		end
+	end
+
+	local character = LP.Character
+
+	if character then
+		local old = character:FindFirstChild("Vortex Laser Gun")
+		if old then
+			old:Destroy()
+		end
+	end
+end
+
+local function CreateVortexLaser()
+	RemoveVortexLaser()
+
+	local gun = Instance.new("Tool")
+	gun.Name = "Vortex Laser Gun"
+	gun.RequiresHandle = true
+	gun.CanBeDropped = false
+	gun.ToolTip = "Vortex Laser Gun"
+	gun.Parent = LP:WaitForChild("Backpack")
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.5, 1, 3)
+	handle.Material = Enum.Material.Neon
+	handle.Color = Color3.fromRGB(255, 0, 0)
+	handle.CanCollide = false
+	handle.CanTouch = false
+	handle.CanQuery = false
+	handle.Massless = true
+	handle.Transparency = 1
+	handle.Parent = gun
+	local function gunPart(name,size,cf,color,material)
+		local p=Instance.new("Part");p.Name=name;p.Size=size;p.CFrame=cf;p.Color=color;p.Material=material or Enum.Material.Metal;p.CanCollide=false;p.CanTouch=false;p.CanQuery=false;p.Massless=true;p.Parent=gun
+		local w=Instance.new("WeldConstraint",p);w.Part0=handle;w.Part1=p;return p
+	end
+	local body=gunPart("Body",Vector3.new(.8,.8,1.7),handle.CFrame,Color3.fromRGB(38,42,52),Enum.Material.Metal)
+	local grip=gunPart("Grip",Vector3.new(.55,1.1,.65),handle.CFrame*CFrame.new(0,-.65,.25)*CFrame.Angles(math.rad(-12),0,0),Color3.fromRGB(25,27,34),Enum.Material.Metal)
+	local barrel=gunPart("Barrel",Vector3.new(.34,.34,1.55),handle.CFrame*CFrame.new(0,0,-1.35),Color3.fromRGB(75,80,92),Enum.Material.Metal)
+	local core=gunPart("EnergyCore",Vector3.new(.42,.42,.65),handle.CFrame*CFrame.new(0,0,-2.05),Accent(),Enum.Material.Neon)
+	local ring=gunPart("EnergyRing",Vector3.new(.7,.7,.18),handle.CFrame*CFrame.new(0,0,-1.72),Accent(),Enum.Material.Neon)
+	local muzzle=gunPart("Muzzle",Vector3.new(.52,.52,.18),handle.CFrame*CFrame.new(0,0,-2.42),Color3.fromRGB(255,255,255),Enum.Material.Neon)
+
+	local shootSound = Instance.new("Sound")
+	shootSound.Name = "ShootSound"
+	shootSound.SoundId = "rbxassetid://130113322"
+	shootSound.Volume = 2
+	shootSound.Parent = handle
+
+	gun.Activated:Connect(function()
+		local mouse = LP:GetMouse()
+		local root = Root()
+
+		if not mouse then
+			return
+		end
+
+		local targetPos = mouse.Hit.Position
+
+		shootSound:Play()
+
+		local exp = Instance.new("Explosion")
+		exp.Position = targetPos
+		exp.BlastRadius = 10
+		exp.BlastPressure = 0
+		exp.DestroyJointRadiusPercent = 0
+		exp.Parent = workspace
+
+		if root then
+			local distance = (targetPos - root.Position).Magnitude
+
+			if distance < 10 then
+				local velocity = Instance.new("BodyVelocity")
+				velocity.Velocity = Vector3.new(0, 100, 0)
+				velocity.MaxForce = Vector3.new(0, math.huge, 0)
+				velocity.Parent = root
+
+				task.delay(0.15, function()
+					if velocity and velocity.Parent then
+						velocity:Destroy()
+					end
+				end)
+			end
+		end
+
+		local startPos = handle.Position
+		local distance = (targetPos - startPos).Magnitude
+
+		if distance > 0 then
+			local tracer = Instance.new("Part")
+			tracer.Name = "VortexLaserTracer"
+			tracer.Anchored = true
+			tracer.CanCollide = false
+			tracer.CanTouch = false
+			tracer.CanQuery = false
+			tracer.Material = Enum.Material.Neon
+			tracer.Color = Color3.fromRGB(255, 255, 0)
+			tracer.Size = Vector3.new(0.2, 0.2, distance)
+			tracer.CFrame =
+				CFrame.lookAt(startPos, targetPos) *
+				CFrame.new(0, 0, -distance / 2)
+			tracer.Parent = workspace
+
+			task.delay(0.05, function()
+				if tracer and tracer.Parent then
+					tracer:Destroy()
+				end
+			end)
+		end
+	end)
+
+	return gun
+end
+
+ToolToggle(
+	"VISUAL",
+	"🛡️ GOD MODE",
+	"GodMode",
+	function(enabled)
+		GodMode = enabled
+
+		if enabled then
+			ApplyGodMode()
+		end
+	end
+)
+
+ToolButton(
+	"PHYSICAL",
+	"🔴 LASER GUN",
+	function()
+		local backpack = LP:FindFirstChildOfClass("Backpack")
+		local character = LP.Character
+
+		local existing =
+			(backpack and backpack:FindFirstChild("Vortex Laser Gun"))
+			or (character and character:FindFirstChild("Vortex Laser Gun"))
+
+		if existing then
+			Notify("VORTEX", "Laser Gun ya está disponible 🔴")
+			return
+		end
+
+		CreateVortexLaser()
+		Notify("VORTEX", "Laser Gun creada 🔴")
+	end
+)
+
+LP.CharacterAdded:Connect(function()
+	task.wait(0.25)
+
+	if GodMode then
+		ApplyGodMode()
+	end
+end)
+
+RunService.Heartbeat:Connect(function(dt)
+	if GodMode then ApplyGodMode() end
+
+	if GodMode then
+		ApplyGodMode()
+	end
+	local h=Humanoid();local r=Root()
+	if h then h.WalkSpeed=State.Sprint and State.Speed*1.5 or State.Speed;h.JumpPower=State.JumpPower end
+	if State.Noclip and Character() then for _,p in ipairs(Character():GetDescendants())do if p:IsA("BasePart")then p.CanCollide=false end end end
+	if State.Fly and r then if not FlyVelocity or not FlyVelocity.Parent then StartFly()end;if FlyVelocity then FlyVelocity.VectorVelocity=FlyDirection()*State.FlySpeed end end
+	if not State.Fly and FlyVelocity then StopFly()end
+	FPS.Text="FPS: "..math.floor(1/math.max(dt,.001));PC.Text="PLAYERS: "..#Players:GetPlayers();Session.Text="SESSION: "..math.floor(os.clock()-State.Session).."s"
+	Input.Text="INPUT: "..(UIS.TouchEnabled and(UIS.KeyboardEnabled and"TOUCH + PC"or"MOBILE")or"PC")
+	UIScale.Scale=(State.Device=="MOBILE" and .82 or 1)*State.Scale
+	if State.RGB then ApplyTheme()end
+	if State.RGB then
+		for _,p in ipairs(LP:GetDescendants()) do if p.Name=="EnergyCore" or p.Name=="EnergyRing" then p.Color=Accent() end end
+	end
+	if State.ESP then for _,p in ipairs(Players:GetPlayers())do UpdateESP(p)end end
+end)
+
+local Profiles = {}
+local function SnapshotProfile()
+	local cc={}
+	for k,v in pairs(State.CustomColors or {}) do cc[k]=v end
+	return {Speed=State.Speed,JumpPower=State.JumpPower,FlySpeed=State.FlySpeed,HoverSpeed=State.HoverSpeed,BodySize=State.BodySize,BodyShape=State.BodyShape,Theme=State.Theme,Scale=State.Scale,Transparency=State.Transparency,RGB=State.RGB,CustomColors=cc}
+end
+local function ApplyProfile(data) if not data then return end;for k,v in pairs(data) do State[k]=v end;if State.Theme and Themes[State.Theme] then ApplyTheme() end;if State.BodySize then SetBodySize(State.BodySize) end;if State.BodyShape then ApplyBodyShape(State.BodyShape) end;Notify("PROFILES","Perfil cargado ⭐") end
+local function SaveProfile(name) if not name or name=="" then return end;Profiles[name]=SnapshotProfile();Notify("PROFILES","Guardado: "..name.." 💾") end
+local function LoadProfile(name) if Profiles[name] then ApplyProfile(Profiles[name]) else Notify("PROFILES","No existe: "..name) end end
+Label(ProfilesPage,"⭐ PROFILES")
+local ProfileNameBox=Instance.new("TextBox");ProfileNameBox.Size=UDim2.new(1,0,0,44);ProfileNameBox.BackgroundColor3=ButtonBaseColor();ProfileNameBox.TextColor3=ButtonTextColor();ProfileNameBox.PlaceholderText="Nombre del perfil...";ProfileNameBox.ClearTextOnFocus=false;ProfileNameBox.Font=Enum.Font.Gotham;ProfileNameBox.TextSize=13;ProfileNameBox.Parent=ProfilesPage;Corner(ProfileNameBox,10);Reg("TextBoxes",ProfileNameBox)
+Button(ProfilesPage,"💾 SAVE PROFILE",function() SaveProfile(ProfileNameBox.Text) end)
+Button(ProfilesPage,"📂 LOAD PROFILE",function() LoadProfile(ProfileNameBox.Text) end)
+Button(ProfilesPage,"⚡ SAVE FAST",function() SaveProfile("Fast") end)
+Button(ProfilesPage,"🛹 SAVE HOVER",function() SaveProfile("Hover") end)
+Button(ProfilesPage,"🧪 SAVE PHYSICS",function() SaveProfile("Physics") end)
+Button(ProfilesPage,"🎭 SAVE FUN",function() SaveProfile("Fun") end)
+Button(ProfilesPage,"🗑 DELETE PROFILE",function() if Profiles[ProfileNameBox.Text] then Profiles[ProfileNameBox.Text]=nil;Notify("PROFILES","Perfil eliminado 🗑") end end)
+
+
+--========================================================
+-- FINAL INITIALIZATION
+--========================================================
+
+-- Default 3.0 profiles are created once the body helpers exist.
+Profiles.Fast=Profiles.Fast or {Speed=80,JumpPower=70,FlySpeed=120,HoverSpeed=90,BodySize="NORMAL",BodyShape="NORMAL",Theme="Vortex Blue",Scale=1,Transparency=.06,RGB=false}
+Profiles.Hover=Profiles.Hover or {Speed=16,JumpPower=50,FlySpeed=70,HoverSpeed=80,BodySize="NORMAL",BodyShape="NORMAL",Theme="Vortex Blue",Scale=1,Transparency=.06,RGB=true}
+Profiles.Physics=Profiles.Physics or {Speed=35,JumpPower=100,FlySpeed=100,HoverSpeed=60,BodySize="BIG",BodyShape="NORMAL",Theme="Purple",Scale=1,Transparency=.06,RGB=false}
+Profiles.Fun=Profiles.Fun or {Speed=40,JumpPower=100,FlySpeed=90,HoverSpeed=70,BodySize="SMALL",BodyShape="FAT",Theme="Cyan",Scale=1,Transparency=.06,RGB=true}
+
+SelectCategory("PHYSICAL")
+OpenPage("HOME")
+ApplyTheme()
+
+Notify(
+	"VORTEX UI REMAKE 3.0",
+	"Vortex UI + Fly + Hoverboard 3D + ESP + Laser + Shapes 🔴🛹",
+	4
+)
