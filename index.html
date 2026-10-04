@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<title>Vortex UI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="header">
+  <div class="brand">VORTEX</div>
+  <button class="hamburger" id="hamburger">☰</button>
+  <nav id="nav">
+    <a href="#home">Inicio</a>
+    <a href="#downloads">Descargas</a>
+    <a href="#docs">Documentación</a>
+    <a href="#changelog">Changelog</a>
+    <a href="#themes">Temas</a>
+  </nav>
+</header>
+
+<section id="home" class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">VORTEX UI 3.0</div>
+    <h1>Tu juego, <span>tu interfaz.</span></h1>
+    <p>Una interfaz moderna, personalizable y diseñada para funcionar perfectamente en móvil.</p>
+    <div class="buttons">
+      <a class="btn primary" href="#downloads">Descargar UI</a>
+      <a class="btn secondary" href="#docs">Documentación</a>
+    </div>
+  </div>
+
+  <!-- ÚNICO CAMBIO: preview horizontal con la imagen proporcionada -->
+  <div class="preview-wrap">
+    <div class="preview-title">VISTA PREVIA · VORTEX CONTROL</div>
+    <div class="device">
+      <div class="screen">
+        <img src="assets/vortex-horizontal.jpg" alt="Vortex Control en horizontal">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <h2>Características principales</h2>
+  <div class="feature-grid">
+    <article><div class="icon">🎨</div><h3>Temas</h3><p>Cambia el aspecto de la interfaz con tus propios colores.</p></article>
+    <article><div class="icon">👤</div><h3>Perfiles</h3><p>Configuraciones y preferencias listas para usar.</p></article>
+    <article><div class="icon">📱</div><h3>Mobile-first</h3><p>Controles pensados para pantallas táctiles.</p></article>
+    <article><div class="icon">🧩</div><h3>Categorías</h3><p>Organiza las funciones de Vortex de forma clara.</p></article>
+  </div>
+</section>
+
+<section id="downloads" class="section">
+  <h2>Descargas</h2>
+  <div class="download-card">
+    <div><strong>Vortex UI 3.0</strong><small>Última versión · Mobile</small></div>
+    <a class="btn primary" href="#">Descargar</a>
+  </div>
+</section>
+
+<section id="docs" class="section">
+  <h2>Documentación</h2>
+  <p>Guías para instalar, configurar y personalizar Vortex UI.</p>
+</section>
+
+<section id="changelog" class="section">
+  <h2>Changelog</h2>
+  <div class="log"><b>3.0</b><span>Nuevo diseño mobile-first, temas y personalización.</span></div>
+  <div class="log"><b>2.x</b><span>Mejoras de rendimiento y organización de módulos.</span></div>
+</section>
+
+<section id="themes" class="section">
+  <h2>Temas</h2>
+  <div class="themes">
+    <button data-theme="#19a8ff">Neon Blue</button>
+    <button data-theme="#9b5cff">Purple</button>
+    <button data-theme="#20d77a">Green</button>
+    <button data-theme="#ff4d6d">Red</button>
+  </div>
+</section>
+
+<footer>VORTEX UI · Mobile Edition</footer>
+<script src="script.js"></script>
+</body>
+</html>
